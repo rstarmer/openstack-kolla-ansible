@@ -68,12 +68,12 @@
     with_items:
       - "{{br_int}}"
       - "{{pub_int}}"
-    when: not (veth_info.stdout | search('veth0'))
+    when: not (veth_info.stdout | search('veth0')) and not ansible_os_family == "RedHat"
 
 
 
-  - name: Install ansible version 2.0 or greater
-    pip: name=ansible state=latest
+#  - name: Install ansible version 2.0 or greater
+#    pip: name=ansible state=latest
   - name: clone kolla
     git: repo=https://git.openstack.org/openstack/kolla dest=/root/kolla version=stable/mitaka
     ignore_errors: true
@@ -99,10 +99,12 @@
 ## Update the /etc/kolla/globals.yml based on the environment
   - name: ensure base is ubuntu
     lineinfile: 'dest=/etc/kolla/globals.yml regexp=^.*kolla_base_distro.* line="kolla_base_distro: ubuntu"'
+    when: ansible_os_family == "Debian"
   - name: ensure install type is source
     lineinfile: 'dest=/etc/kolla/globals.yml regexp=^.*kolla_install_type.* line="kolla_install_type: source"'
+    when: ansible_os_family == "Debian"
   - set_fact:
-      vip_net: "{{ansible_default_ipv4.network}}/{{ansible_default_ipv4.netmask}}"
+      vip_net: "{{ansible_enp0s8.ipv4.network}}/{{ansible_enp0s8.ipv4.netmask}}"
   - set_fact:
       vip_ip:  "{{vip_net|ipaddr('net')|ipaddr('-2')|ipaddr('address')}}"
   - name: set the default internal VIP address
@@ -117,14 +119,26 @@
 
 ## Build the images
   - name: run kolla build to build source based images
+    shell: 'kolla-build |& tee /var/log/kolla-build.log'
+    args:
+      creates: /var/log/kolla-build.log
+      executable: /bin/bash
+    async: 1200
+    poll: 0
+    register: kolla_build
+    ignore_errors: true
+    when: ansible_os_family == "RedHat"
+  - name: run kolla build to build source based images
     shell: 'kolla-build --type source --base ubuntu |& tee /var/log/kolla-build.log'
     args:
       creates: /var/log/kolla-build.log
       executable: /bin/bash
-    async: 60
+    async: 1200
     poll: 0
     register: kolla_build
     ignore_errors: true
+    when: ansible_os_family == "Debian"
+  - debug: var=kolla_build
   - debug: msg="Run this kolla-build --type source --base ubuntu"
 ## Ensure DNS is configured
   - name: update resolv.conf with domain
@@ -148,4 +162,5 @@
   - name: update keystone_admin_password
     lineinfile: >
      src=/etc/kolla/passwords.yml 
+     regexp='^.*keystone_admin_password:.*'
      line='keystone_admin_password: openstack' 

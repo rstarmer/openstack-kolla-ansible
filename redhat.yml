@@ -8,9 +8,11 @@
     - vim
     - epel-release
     - python-pip
-    - ansible
+    - libffi-devel
     - ntp
     - bridge-utils
+    - ansible
+    - libselinux-python
 - name: update all
   yum: name='*' state=latest
 - name: start and enable services

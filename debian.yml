@@ -11,6 +11,7 @@
     - libssl-dev
     - gcc
     - git
+    - ansible
     - bridge-utils
 - name: ensure lxc lxd are removed
   apt: pkg={{item}} state=absent
