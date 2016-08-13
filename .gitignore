@@ -1,0 +1,5 @@
+*.retry
+*.log
+id_rsa*
+.vagrant
+.cache*
