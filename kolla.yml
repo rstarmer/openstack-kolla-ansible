@@ -11,7 +11,6 @@
   become: true
   become_user: root
   vars:
-    net_0: 10.10.10.0/24
     vld: /var/lib/docker
     domain: opsits.com
     index: 1
@@ -103,7 +102,6 @@
   - name: ensure install type is source
     lineinfile: 'dest=/etc/kolla/globals.yml regexp=^.*kolla_install_type.* line="kolla_install_type: source"'
   - set_fact:
-      net_0_ip: "{{ net_0 |ipaddr('net')|ipaddr(index)}}"
       vip_net: "{{ansible_default_ipv4.network}}/{{ansible_default_ipv4.netmask}}"
   - set_fact:
       vip_ip:  "{{vip_net|ipaddr('net')|ipaddr('-2')|ipaddr('address')}}"
@@ -119,7 +117,7 @@
 
 ## Build the images
   - name: run kolla build to build source based images
-    shell: 'kolla-build --type source --base ubuntu |& /var/log/kolla-build.log'
+    shell: 'kolla-build --type source --base ubuntu |& tee /var/log/kolla-build.log'
     args:
       creates: /var/log/kolla-build.log
       executable: /bin/bash

@@ -12,3 +12,8 @@
     - gcc
     - git
     - bridge-utils
+- name: ensure lxc lxd are removed
+  apt: pkg={{item}} state=absent
+  with_items:
+    - lxc
+    - lxd
