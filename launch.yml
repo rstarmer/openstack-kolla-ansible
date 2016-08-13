@@ -16,6 +16,7 @@
   - name: update keystone_admin_password
     lineinfile: >
      dest=/etc/kolla/passwords.yml 
+     regexp='^.*keystone_admin_password:.*'
      line='keystone_admin_password: openstack' 
   - name: run kolla-ansible deploy
     shell: kolla-ansible deploy |& tee /var/log/kolla-deploy.log

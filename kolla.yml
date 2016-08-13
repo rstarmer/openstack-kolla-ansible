@@ -117,29 +117,6 @@
     lineinfile: "dest=/etc/kolla/globals.yml regexp=^.*neutron_plugin_agent:.* line='neutron_plugin_agent: linuxbridge'"
 
 
-## Build the images
-  - name: run kolla build to build source based images
-    shell: 'kolla-build |& tee /var/log/kolla-build.log'
-    args:
-      creates: /var/log/kolla-build.log
-      executable: /bin/bash
-    async: 1200
-    poll: 0
-    register: kolla_build
-    ignore_errors: true
-    when: ansible_os_family == "RedHat"
-  - name: run kolla build to build source based images
-    shell: 'kolla-build --type source --base ubuntu |& tee /var/log/kolla-build.log'
-    args:
-      creates: /var/log/kolla-build.log
-      executable: /bin/bash
-    async: 1200
-    poll: 0
-    register: kolla_build
-    ignore_errors: true
-    when: ansible_os_family == "Debian"
-  - debug: var=kolla_build
-  - debug: msg="Run this kolla-build --type source --base ubuntu"
 ## Ensure DNS is configured
   - name: update resolv.conf with domain
     lineinfile: dest=/etc/resolv.conf backrefs=yes regexp=^search(.*) line='search \1 {{domain}}'
@@ -152,15 +129,39 @@
     fetch: src=~/.ssh/id_rsa dest=./ flat=yes
   - name: fetch the public key
     fetch: src=~/.ssh/id_rsa.pub dest=./ flat=yes
+
+## Build the images
+  - name: run kolla build to build source based images
+    shell: 'kolla-build |& tee /var/log/kolla-build.log'
+    args:
+      creates: /var/log/kolla-build.log
+      executable: /bin/bash
+    async: 1200
+    poll: 0
+    register: kolla_build_r
+    ignore_errors: true
+    when: ansible_os_family == "RedHat"
+  - debug: var=kolla_build_r
+  - name: run kolla build to build source based images
+    shell: 'kolla-build --type source --base ubuntu |& tee /var/log/kolla-build.log'
+    args:
+      creates: /var/log/kolla-build.log
+      executable: /bin/bash
+    async: 1200
+    poll: 0
+    register: kolla_build_u
+    ignore_errors: true
+    when: ansible_os_family == "Debian"
+  - debug: var=kolla_build_u
   - name: check on kolla-build process
-    async_status: "jid={{ kolla_build.ansible_job_id }}"
+    async_status: "jid={{ kolla_build_u.ansible_job_id }}"
     register: job_result
     until: job_result.finished
     retries: 600
-  - name: generate passwords
-    command: kolla-genpwd creates=/etc/kolla/passwords.yml
-  - name: update keystone_admin_password
-    lineinfile: >
-     src=/etc/kolla/passwords.yml 
-     regexp='^.*keystone_admin_password:.*'
-     line='keystone_admin_password: openstack' 
+    when: ansible_os_family == "Debian"
+  - name: check on kolla-build process
+    async_status: "jid={{ kolla_build_r.ansible_job_id }}"
+    register: job_result
+    until: job_result.finished
+    retries: 600
+    when: ansible_os_family == "RedHat"
