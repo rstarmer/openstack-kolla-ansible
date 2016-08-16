@@ -1,2 +1,2 @@
 [build]
-default ansible_host=172.17.8.13 ansible_ssh_user=root
+default ansible_host=192.168.56.10 ansible_ssh_user=root

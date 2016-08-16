@@ -25,9 +25,6 @@
     include: redhat.yml
     when: ansible_os_family == "RedHat"
   tasks:
-  - name: deploy wily resources
-    include: wily.yml
-    when: ansible_os_family == "Debian" and not ansible_lsb.codename == "xenial"
   - name: add ssh public key
     authorized_key: user=root key="{{ lookup('file', '~/.ssh/id_rsa.pub') }}"
   - name: update ssh config
@@ -49,9 +46,6 @@
   - name: add '{{br_int}}'
     command: brctl addbr '{{br_int}}'
     when: not (veth_info.stdout | search('veth0'))
-  - name: add ext_int to '{{br_int}}'
-    command: brctl addif '{{br_int}}' '{{ext_int}}'
-    when: not (veth_info.stdout | search('veth0'))
   - name: add veth1 to '{{br_int}}'
     command: brctl addif '{{br_int}}' veth1
     when: not (veth_info.stdout | search('veth0'))
@@ -63,17 +57,11 @@
        - veth0
        - veth1
        - "{{br_int}}"
-  - name: re-discover address on interfaces
-    command: dhclient "{{item}}"
-    with_items:
-      - "{{br_int}}"
-      - "{{pub_int}}"
-    when: not (veth_info.stdout | search('veth0')) and not ansible_os_family == "RedHat"
 
-
-
-#  - name: Install ansible version 2.0 or greater
-#    pip: name=ansible state=latest
+  - name: get latest pip
+    pip: name=pip state=latest
+  - name: Install ansible version 1.9.4 with stable/mitaka kolla branch
+    pip: name=ansible state=present version=1.9.4
   - name: clone kolla
     git: repo=https://git.openstack.org/openstack/kolla dest=/root/kolla version=stable/mitaka
     ignore_errors: true
@@ -115,6 +103,9 @@
     lineinfile: "dest=/etc/kolla/globals.yml regexp=^.*neutron_external_interface:.* line='neutron_external_interface: veth0'"
   - name: set the docker network interface
     lineinfile: "dest=/etc/kolla/globals.yml regexp=^.*neutron_plugin_agent:.* line='neutron_plugin_agent: linuxbridge'"
+  - name: bypass the haproxy and keepalived config
+    lineinfile: "dest=/etc/kolla/globals.yml regexp=^.*enable_haproxy:.* line='enable_haproxy: no'"
+
 
 
 ## Ensure DNS is configured
@@ -129,6 +120,14 @@
     fetch: src=~/.ssh/id_rsa dest=./ flat=yes
   - name: fetch the public key
     fetch: src=~/.ssh/id_rsa.pub dest=./ flat=yes
+
+  - name: generate passwords
+    command: kolla-genpwd
+  - name: update keystone_admin_password
+    lineinfile: >
+     dest=/etc/kolla/passwords.yml
+     regexp='^.*keystone_admin_password:.*'
+     line='keystone_admin_password: openstack'
 
 ## Build the images
   - name: run kolla build to build source based images
