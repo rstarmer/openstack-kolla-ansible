@@ -126,7 +126,7 @@
   - name: update resolv.conf with domain
     lineinfile: dest=/etc/resolv.conf backrefs=yes regexp=^search(.*) line='search \1 {{domain}}'
   - name: ensure hosts file is properly set
-    lineinfile: dest=/etc/hosts regex='.*{{inventory_hostname}}.*' line='{{ansible_enp8s0.ipv4.address}} {{inventory_hostname}}.{{domain}} {{inventory_hostname}}'
+    lineinfile: dest=/etc/hosts regex='.*{{inventory_hostname}}.*' line='{{ansible_enp0s8.ipv4.address}} {{inventory_hostname}}.{{domain}} {{inventory_hostname}}'
   - name: ensure hostname is properly set
     command: hostname {{inventory_hostname}}
 ## create and upload an SSH pair
