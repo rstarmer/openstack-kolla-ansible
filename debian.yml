@@ -4,6 +4,7 @@
   with_items:
     - git
     - vim
+    - htop
     - python-pip
     - python-dev
     - python-netaddr

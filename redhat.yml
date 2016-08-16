@@ -6,7 +6,7 @@
   with_items:
     - git
     - vim
-    - epel-release
+    - htop
     - python-pip
     - python-devel
     - libffi-devel
