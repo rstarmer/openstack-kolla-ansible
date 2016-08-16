@@ -1,0 +1,13 @@
+---
+- hosts: build
+  become: true
+  become_user: root
+  vars:
+    lv_type: qemu
+  tasks:
+  - name: update nova-compute with libvirt type
+    ini_file: "dest=/etc/kolla/nova-compute/nova.conf section=libvirt option=virt_type value={{lv_type}}"
+#  - name: restart nova_compute contianer
+#    docker_container: name=nova_compute state=started restart=true
+  - name: restart nova_compute container
+    command: docker restart nova_compute
