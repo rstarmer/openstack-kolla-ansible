@@ -106,11 +106,13 @@
   - name: bypass the haproxy and keepalived config
     lineinfile: "dest=/etc/kolla/globals.yml regexp=^.*enable_haproxy:.* line='enable_haproxy: no'"
 
-
-
 ## Ensure DNS is configured
   - name: update resolv.conf with domain
     lineinfile: dest=/etc/resolv.conf backrefs=yes regexp=^search(.*) line='search \1 {{domain}}'
+  - name: ensure hosts file is properly set
+    lineinfile: dest=/etc/hosts regex='.*{{inventory_hostname}}.*' line='{{ansible_enp8s0.ipv4.address}} {{inventory_hostname}}.{{domain}} {{inventory_hostname}}'
+  - name: ensure hostname is properly set
+    command: hostname {{inventory_hostname}}
 ## create and upload an SSH pair
   - name: ensure ssh directory exists
     file: path=~/.ssh state=directory mode=0700
@@ -131,9 +133,8 @@
 
 ## Build the images
   - name: run kolla build to build source based images
-    shell: 'kolla-build |& tee /var/log/kolla-build.log'
+    shell: 'kolla-build --type binary --base centos --tag 3.0.0'
     args:
-      creates: /var/log/kolla-build.log
       executable: /bin/bash
     async: 1200
     poll: 0
@@ -142,7 +143,7 @@
     when: ansible_os_family == "RedHat"
   - debug: var=kolla_build_r
   - name: run kolla build to build source based images
-    shell: 'kolla-build --type source --base ubuntu |& tee /var/log/kolla-build.log'
+    shell: 'kolla-build --type source --base ubuntu --tag 3.0.0'
     args:
       creates: /var/log/kolla-build.log
       executable: /bin/bash
@@ -156,11 +157,25 @@
     async_status: "jid={{ kolla_build_u.ansible_job_id }}"
     register: job_result
     until: job_result.finished
-    retries: 600
+    retries: 300
     when: ansible_os_family == "Debian"
   - name: check on kolla-build process
     async_status: "jid={{ kolla_build_r.ansible_job_id }}"
     register: job_result
     until: job_result.finished
-    retries: 600
+    retries: 300
     when: ansible_os_family == "RedHat"
+
+  - name: run kolla-ansible deploy
+    shell: kolla-ansible deploy |& tee /var/log/kolla-deploy.log
+    args:
+      executable: /bin/bash
+      creates: /var/log/kolla-deploy.log
+    async: 1200
+    poll: 0
+    register: ap_build
+  - name: check on build
+    async_status: jid={{ ap_build.ansible_job_id }}
+    register: job_result
+    until: job_result.finished
+    retries: 300
