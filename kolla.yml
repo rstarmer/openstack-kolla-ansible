@@ -36,6 +36,15 @@
   - name: Install pip based docker-py module
     pip: name=docker-py
 
+  - name: fix NAT interface boot
+    lineinfile: dest=/etc/sysconfig/network-scripts/ifcfg-enp0s3 regext='^ONBOOT.*' line='ONBOOT=yes'
+    when: ansible_os_family == "RedHat"
+  - name: upload bridge template
+    template: dest=/etc/sysconfig/network-scripts/ifcfg-{{ext_int}} src=./bridge.j2
+    when: ansible_os_family == "RedHat"
+  - name: upload pulbic template
+    template: dest=/etc/sysconfig/network-scripts/ifcfg-{{pub_int}} src=./public.j2 
+    when: ansible_os_family == "RedHat"
   - name: check for veth interface
     command: ip -d link
     register: veth_info
