@@ -13,6 +13,7 @@
   vars:
     vld: /var/lib/docker
     domain: opsits.com
+    admin_password: openstack
     index: 1
     nat_int: enp0s3
     pub_int: enp0s8
@@ -150,7 +151,18 @@
     lineinfile: >
      dest=/etc/kolla/passwords.yml
      regexp='^.*keystone_admin_password:.*'
-     line='keystone_admin_password: openstack'
+     line='keystone_admin_password: {{admin_password}}'
+
+## Enable Openstack services
+  - name: install openstack client on node
+    pip: "name=python-{{item}}client state=installed"
+    with_items:
+    - openstack
+    - neutron
+  - name: insert openstack admin.rc file
+    template: src=./admin-rc.j2 dest=~/admin.rc
+  = name: upload network create script
+    copy: src=./setup_net.sh dest=~/setup_net.sh
 
 ## Build the images
   - name: run kolla build to build source based images
