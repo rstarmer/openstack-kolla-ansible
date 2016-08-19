@@ -175,7 +175,7 @@
     - neutron
   - name: insert openstack admin.rc file
     template: src=./admin-rc.j2 dest=~/admin.rc
-  = name: upload network create script
+  - name: upload network create script
     copy: src=./setup_net.sh dest=~/setup_net.sh
 
 ## Build the images
