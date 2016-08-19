@@ -46,7 +46,7 @@
   - name: ensure interfaces are online
     command: ifup {{item}}
     with_items:
-     - {{nat_int}}
+     - "{{nat_int}}"
      - "{{pub_int}}"
      - "{{ext_int}}"
     when: ansible_os_family == "RedHat"
