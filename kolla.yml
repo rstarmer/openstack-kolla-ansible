@@ -169,7 +169,7 @@
 
 ## Enable Openstack services
   - name: install openstack client on node
-    pip: "name=python-{{item}}client state=installed"
+    pip: "name=python-{{item}}client state=latest"
     with_items:
     - openstack
     - neutron
