@@ -14,6 +14,7 @@
     - bridge-utils
     - ansible
     - libselinux-python
+    - gcc
     - '@Development Tools'
     - openssl-devel
 - name: update all

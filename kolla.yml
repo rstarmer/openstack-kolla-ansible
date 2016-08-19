@@ -26,13 +26,15 @@
   become_user: root
   vars:
     vld: /var/lib/docker
-    domain: opsits.com
+#    domain: opsits.com # added to inventory for less editing
     admin_password: openstack
     index: 1
-    nat_int: enp0s3
-    pub_int: enp0s8
-    ext_int: enp0s9
+#    nat_int: enp0s3 # added to inventory
+#    pub_int: enp0s8
+#    ext_int: enp0s9
     br_int: br0
+    build_type: source
+    build_tag: 3.0.0
   pre_tasks:
   - name: fix NAT interface boot
     lineinfile: dest=/etc/sysconfig/network-scripts/ifcfg-{{nat_int}} regexp='^ONBOOT.*' line='ONBOOT=yes'
@@ -121,10 +123,9 @@
     lineinfile: 'dest=/etc/kolla/globals.yml regexp=^.*kolla_base_distro.* line="kolla_base_distro: ubuntu"'
     when: ansible_os_family == "Debian"
   - name: ensure install type is source
-    lineinfile: 'dest=/etc/kolla/globals.yml regexp=^.*kolla_install_type.* line="kolla_install_type: source"'
-    when: ansible_os_family == "Debian"
-  - name: set tag to 3.0.0
-    lineinfile: 'dest=/etc/kolla/globals.yml regexp=^.*openstack_release.* line="openstack_release: 3.0.0"'
+    lineinfile: 'dest=/etc/kolla/globals.yml regexp=^.*kolla_install_type.* line="kolla_install_type: {{build_type}}"'
+  - name: set tag to {{build_tag}}
+    lineinfile: 'dest=/etc/kolla/globals.yml regexp=^.*openstack_release.* line="openstack_release: {{build_tag}}"'
 #  - set_fact:
 #      vip_net: "{{hostvars[inventory_hostname]['ansible_'+pub_int]['ipv4']['network']}}/{{hostvars[inventory_hostname]['ansible_'+pub_int]['ipv4']['netmask']}}"
 #  - set_fact:
@@ -179,18 +180,21 @@
     copy: src=./setup_net.sh dest=~/setup_net.sh
 
 ## Build the images
+  - name: check to see if images are already built
+    command: docker images
+    register: image_list
   - name: run kolla build to build source based images
-    shell: 'kolla-build --type binary --base centos --tag 3.0.0'
+    shell: 'kolla-build --type {{build_type}} --base centos --tag {{build_tag}}'
     args:
       executable: /bin/bash
     async: 1200
     poll: 0
     register: kolla_build_r
     ignore_errors: true
-    when: ansible_os_family == "RedHat"
+    when: ansible_os_family == "RedHat" and not ('kolla/ubuntu-{{build_type}}' and "{{build_tag}}" in image_list)
   - debug: var=kolla_build_r
   - name: run kolla build to build source based images
-    shell: 'kolla-build --type source --base ubuntu --tag 3.0.0'
+    shell: 'kolla-build --type {{build_type}} --base ubuntu --tag {{build_tag}}'
     args:
       creates: /var/log/kolla-build.log
       executable: /bin/bash
@@ -198,7 +202,7 @@
     poll: 0
     register: kolla_build_u
     ignore_errors: true
-    when: ansible_os_family == "Debian"
+    when: ansible_os_family == "Debian" and not ('kolla/ubuntu-{{build_type}}' and "{{build_tag}}" in image_list)
   - debug: var=kolla_build_u
   - name: check on kolla-build process
     async_status: "jid={{ kolla_build_u.ansible_job_id }}"
@@ -226,3 +230,15 @@
     register: job_result
     until: job_result.finished
     retries: 300
+
+  - name: check to see if we need to force qemu emulation
+    command: egrep -c 'vmx|svm|0xc0f' /proc/cpuinfo
+    register: cpu_info
+  - name: update nova-compute with libvirt type to qemu if no nested virt is availble
+    ini_file: "dest=/etc/kolla/nova-compute/nova.conf section=libvirt option=virt_type value=qemu"
+    when: cpu_info.stdout == '0'
+  - name: update nova-compute with libvirt type to kvm for nested virt
+    ini_file: "dest=/etc/kolla/nova-compute/nova.conf section=libvirt option=virt_type value=kvm"
+    when: not cpu_info.stdout == '0'
+  - name: restart nova_compute container
+    command: docker restart nova_compute

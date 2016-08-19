@@ -1,2 +1,2 @@
 [build]
-centos ansible_host=192.168.56.10 ansible_ssh_user=root
+centos ansible_host=192.168.56.10 domain=opsits.com ansible_ssh_user=root nat_int=enp0s3 pub_int=enp0s8 ext_int=enp0s9
